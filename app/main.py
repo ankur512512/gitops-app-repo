@@ -57,18 +57,6 @@ def signup(body: SignupIn):
             raise HTTPException(status_code=409, detail="username already exists")
     return {"status": "created", "username": body.username}
 
-
-@app.post("/login", response_model=TokenOut)
-def login(body: LoginIn):
-    with SessionLocal() as db:
-        user = db.query(User).filter(User.username == body.username).first()
-        if not user or user.password != body.password:
-            raise HTTPException(status_code=401, detail="invalid credentials")
-
-    token = create_access_token(sub=body.username, roles=["user"])
-    return TokenOut(access_token=token)
-
-
 @app.get("/healthz")
 def healthz():
     return {"status": "ok", "env": settings.ENV}
