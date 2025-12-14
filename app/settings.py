@@ -7,8 +7,8 @@ class Settings(BaseSettings):
     ENV: str = "local"
     PORT: int = 8000
 
-    DATABASE_URL: str
-    JWT_SECRET: str
+    DATABASE_URL: str = "sqlite:///./app.db"
+    JWT_SECRET: str = "dev-secret"
     JWT_ISSUER: str = "app-repo"
     JWT_EXPIRES_MINUTES: int = 60
 
