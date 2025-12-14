@@ -1,0 +1,247 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>DevOps Showcase</title>
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      background: #f7f7f7;
+    }
+
+    header {
+      background: #111;
+      color: #fff;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+    }
+
+    header h1 {
+      font-size: 18px;
+      margin: 0;
+      flex: 1;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+    }
+
+    .tab {
+      background: #222;
+      border: none;
+      color: #aaa;
+      padding: 8px 14px;
+      cursor: pointer;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .tab.active {
+      background: #fff;
+      color: #111;
+      font-weight: 600;
+    }
+
+    main {
+      padding: 20px;
+    }
+
+    .panel {
+      display: none;
+    }
+
+    .panel.active {
+      display: block;
+    }
+
+    img {
+      max-width: 100%;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      background: #fff;
+      padding: 8px;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 6px 0;
+    }
+
+    button.action {
+      padding: 10px 14px;
+      margin-top: 6px;
+      cursor: pointer;
+    }
+
+    .card {
+      background: #fff;
+      padding: 16px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      max-width: 480px;
+    }
+
+    pre {
+      background: #111;
+      color: #eee;
+      padding: 12px;
+      border-radius: 8px;
+      overflow: auto;
+      margin-top: 12px;
+    }
+
+    h2 {
+      margin-top: 0;
+    }
+
+    .section {
+      margin-bottom: 20px;
+    }
+    .appgrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .outbox {
+      height: calc(100vh - 220px);
+      overflow: auto;
+      margin: 0;
+    }
+
+    @media (max-width: 900px) {
+      .appgrid { grid-template-columns: 1fr; }
+      .outbox { height: 320px; }
+    }
+
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>DevOps CI/CD + GitOps Showcase</h1>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('flow')">Flowchart</button>
+    <button class="tab" onclick="showTab('app')">App</button>
+  </div>
+</header>
+
+<main>
+  <!-- FLOWCHART TAB -->
+  <div id="flow" class="panel active">
+    <h2>CI/CD + GitOps Flow</h2>
+    <p>
+      This diagram shows the end-to-end DevOps pipeline:
+      developer → CI → image registry → Kargo → Argo CD → Kubernetes.
+    </p>
+
+    <img src="/static/flowchart.png" alt="CI/CD Flowchart" />
+
+    <p style="margin-top: 12px; color: #555;">
+      (This will later be replaced with the final Kargo + ArgoCD + security flow.)
+    </p>
+  </div>
+
+    <!-- APP TAB -->
+  <div id="app" class="panel">
+    <h2>Live App Demo (DB-backed)</h2>
+
+    <div class="appgrid">
+        <!-- Left: actions -->
+        <div class="card">
+        <div class="section">
+            <h3>Signup</h3>
+            <input id="su_user" placeholder="username" />
+            <input id="su_pass" placeholder="password" type="password" />
+            <button class="action" onclick="signup()">Create account</button>
+        </div>
+
+        <div class="section">
+            <h3>Login</h3>
+            <input id="li_user" placeholder="username" />
+            <input id="li_pass" placeholder="password" type="password" />
+            <button class="action" onclick="login()">Login</button>
+        </div>
+
+        <div class="section">
+            <h3>WhoAmI</h3>
+            <button class="action" onclick="whoami()">Call /whoami</button>
+        </div>
+
+        <div class="section">
+            <h3>Metadata</h3>
+            <button class="action" onclick="meta()">Call /meta</button>
+        </div>
+        </div>
+
+        <!-- Right: output -->
+        <div class="card">
+        <h3 style="margin-top:0;">Output</h3>
+        <pre id="out" class="outbox">{}</pre>
+        </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  let token = null;
+
+  function showTab(name) {
+    document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+
+    document.getElementById(name).classList.add("active");
+    document.querySelector(`.tab[onclick*="${name}"]`).classList.add("active");
+  }
+
+  const out = (obj) => {
+    document.getElementById("out").textContent = JSON.stringify(obj, null, 2);
+  };
+
+  async function meta() {
+    const r = await fetch("/meta");
+    out({status: r.status, body: await r.json()});
+}
+
+  async function signup() {
+    const username = su_user.value;
+    const password = su_pass.value;
+    const r = await fetch("/signup", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({username, password})
+    });
+    out({status: r.status, body: await r.json()});
+  }
+
+  async function login() {
+    const username = li_user.value;
+    const password = li_pass.value;
+    const r = await fetch("/login", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({username, password})
+    });
+    const data = await r.json();
+    if (r.ok) token = data.access_token;
+    out({status: r.status, body: data, tokenSet: !!token});
+  }
+
+  async function whoami() {
+    const r = await fetch("/whoami", {
+      headers: token ? {"Authorization": `Bearer ${token}`} : {}
+    });
+    out({status: r.status, body: await r.json()});
+  }
+</script>
+
+</body>
+</html>
