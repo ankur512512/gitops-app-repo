@@ -10,6 +10,60 @@ permissions:
   packages: write
 
 jobs:
+
+  security-scan:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set vars
+        id: vars
+        run: |
+          echo "sha_short=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build a local image (amd64) so scanners can inspect it reliably
+      - name: Build image for scanning (local)
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --load \
+            -t appscan:${{ steps.vars.outputs.sha_short }} \
+            .
+
+      # SBOM (Syft)
+      - name: Generate SBOM (Syft)
+        uses: anchore/sbom-action@v0
+        with:
+          image: appscan:${{ steps.vars.outputs.sha_short }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      # Vulnerability scan (Trivy)
+      - name: Scan image (Trivy) - fail on HIGH/CRITICAL
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: appscan:${{ steps.vars.outputs.sha_short }}
+          format: table
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-spdx-json
+          path: sbom.spdx.json
+
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -29,7 +83,7 @@ jobs:
         run: pytest -q
 
   build-and-push:
-    needs: test
+    needs: [test, security-scan]
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     steps:
@@ -63,6 +117,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: |
             ${{ steps.vars.outputs.image }}:sha-${{ steps.vars.outputs.sha_short }}
+            ${{ steps.vars.outputs.image }}:sha-${{ github.sha }}
             ${{ steps.vars.outputs.image }}:main
           build-args: |
             GIT_SHA=${{ github.sha }}
