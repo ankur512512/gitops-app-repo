@@ -66,6 +66,21 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:15
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: appdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
 
@@ -80,6 +95,10 @@ jobs:
           pip install pytest
 
       - name: Run tests
+        env:
+          DATABASE_URL: postgresql+psycopg://app:app@localhost:5432/appdb
+          APP_NAME: test-app
+          ENV: test
         run: pytest -q
 
   build-and-push:
